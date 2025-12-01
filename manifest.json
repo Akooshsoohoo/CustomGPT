@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "customGPT",
+  "version": "1.0",
+  "description": "Customize the ChatGPT webpage with your own interface and tools.",
+  "permissions": ["scripting", "activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "icons": {
+    "128": "128icon.png"
+  }
+}
