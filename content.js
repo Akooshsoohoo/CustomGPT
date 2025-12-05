@@ -42,11 +42,40 @@ function insertCustomGPTButton() {
   wrapper.insertAdjacentElement("afterend", item);
 }
 
+// Save & restore toggle state
+const STORAGE_KEY = "customgpt_toggles";
+function saveToggles(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function loadToggles() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+      Library: true,
+      Codex: true,
+      GPTs: true
+    };
+  } catch {
+    return { Library: true, Codex: true, GPTs: true };
+  }
+}
+function applyToggles(state) {
+  const nav = document.querySelector("nav");
+  if (!nav) return;
+  ["Library", "Codex", "GPTs"].forEach(name => {
+    const el = [...nav.querySelectorAll("*")].find(
+      e => e.textContent.trim() === name
+    );
+    if (el) el.closest("a, div").style.display = state[name] ? "" : "none";
+  });
+}
+
 function showModal() {
   if (document.getElementById("customgpt-modal")) {
     document.getElementById("customgpt-modal").style.display = "flex";
     return;
   }
+
+  const state = loadToggles();
 
   const overlay = document.createElement("div");
   overlay.id = "customgpt-modal";
@@ -66,9 +95,7 @@ function showModal() {
     background: "#2a2a2e",
     borderRadius: "10px",
     padding: "32px",
-    width: "480px",
-    maxHeight: "80vh",
-    overflowY: "auto",
+    width: "460px",
     boxShadow: "0 0 20px rgba(0,0,0,0.6)",
     color: "#e4e4e7",
     fontFamily: "system-ui, sans-serif",
@@ -80,53 +107,67 @@ function showModal() {
       position:absolute; top:16px; right:16px; background:none; border:none;
       color:#aaa; font-size:20px; cursor:pointer;">×</button>
     <h2 style="font-size:1.5rem; font-weight:600; margin-bottom:1rem;">CustomGPT Settings</h2>
-    <p style="margin-bottom:1.5rem; color:#a1a1aa;">Configure appearance and behavior for your CustomGPT extension.</p>
+    <p style="margin-bottom:1.5rem; color:#a1a1aa;">Toggle sidebar sections below:</p>
 
-    <div style="display:flex; flex-direction:column; gap:1.25rem;">
-      <div>
-        <label style="display:block; margin-bottom:6px;">Background color</label>
-        <input id="cg-bg" type="color" style="width:100%; height:36px; border:none; border-radius:6px; background:#1e1e20;">
-      </div>
-      <div>
-        <label style="display:block; margin-bottom:6px;">Sidebar color</label>
-        <input id="cg-side" type="color" style="width:100%; height:36px; border:none; border-radius:6px; background:#1e1e20;">
-      </div>
-      <div>
-        <label style="display:block; margin-bottom:6px;">Text color</label>
-        <input id="cg-text" type="color" style="width:100%; height:36px; border:none; border-radius:6px; background:#1e1e20;">
-      </div>
+    <div id="toggle-list" style="display:flex; flex-direction:column; gap:1.25rem;">
+      ${["Library", "Codex", "GPTs"].map(name => `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span>${name}</span>
+          <label class="switch" style="position:relative; display:inline-block; width:42px; height:22px;">
+            <input type="checkbox" id="toggle-${name}" ${state[name] ? "checked" : ""} style="opacity:0; width:0; height:0;">
+            <span style="
+              position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
+              background-color:${state[name] ? '#10b981' : '#555'};
+              transition:.3s; border-radius:22px;">
+            </span>
+            <span style="
+              position:absolute; content:''; height:18px; width:18px; left:${state[name] ? '22px' : '2px'};
+              bottom:2px; background-color:white; border-radius:50%; transition:.3s;">
+            </span>
+          </label>
+        </div>
+      `).join("")}
     </div>
   `;
 
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 
-  // close modal
-  document.getElementById("customgpt-close").onclick = () => {
-    overlay.style.display = "none";
-  };
+  const close = document.getElementById("customgpt-close");
+  close.onclick = () => (overlay.style.display = "none");
   overlay.addEventListener("click", e => {
     if (e.target === overlay) overlay.style.display = "none";
   });
 
-  // listeners for color updates
-  const bg = modal.querySelector("#cg-bg");
-  const si = modal.querySelector("#cg-side");
-  const tx = modal.querySelector("#cg-text");
+  // Toggle handlers
+  ["Library", "Codex", "GPTs"].forEach(name => {
+    const input = document.getElementById(`toggle-${name}`);
+    const bgTrack = input.nextElementSibling;
+    const knob = bgTrack.nextElementSibling;
 
-  function apply() {
-    document.body.style.backgroundColor = bg.value;
-    const sidebar = document.querySelector("nav");
-    if (sidebar) sidebar.style.backgroundColor = si.value;
-    document.body.style.color = tx.value;
-  }
+    function updateUI(on) {
+      bgTrack.style.backgroundColor = on ? "#10b981" : "#555";
+      knob.style.left = on ? "22px" : "2px";
+    }
 
-  [bg, si, tx].forEach(i => i.addEventListener("input", apply));
+    input.addEventListener("change", () => {
+      state[name] = input.checked;
+      saveToggles(state);
+      applyToggles(state);
+      updateUI(input.checked);
+    });
+  });
+
+  applyToggles(state);
 }
 
 const obs = new MutationObserver(() => {
-  if (document.querySelector("nav")) insertCustomGPTButton();
+  if (document.querySelector("nav")) {
+    insertCustomGPTButton();
+    applyToggles(loadToggles());
+  }
 });
 obs.observe(document.body, { childList: true, subtree: true });
 
 insertCustomGPTButton();
+applyToggles(loadToggles());
