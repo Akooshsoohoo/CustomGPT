@@ -36,59 +36,83 @@ function insertCustomGPTButton() {
   item.addEventListener("click", e => {
     e.preventDefault();
     e.stopPropagation();
-    window.location.hash = "#customgpt";
+    showModal();
   });
 
   wrapper.insertAdjacentElement("afterend", item);
 }
 
-function renderCustomGPTPage() {
-  const existing = document.getElementById("customgpt-page");
-  if (existing) {
-    existing.style.display = "block";
+function showModal() {
+  if (document.getElementById("customgpt-modal")) {
+    document.getElementById("customgpt-modal").style.display = "flex";
     return;
   }
 
-  const main = document.querySelector("main") || document.querySelector('[role="presentation"]');
-  if (!main) return;
-
-  const page = document.createElement("div");
-  page.id = "customgpt-page";
-  Object.assign(page.style, {
-    color: "var(--text-primary, #e4e4e7)",
-    padding: "48px 64px",
-    maxWidth: "800px",
-    margin: "0 auto",
-    fontFamily: "system-ui, sans-serif"
+  const overlay = document.createElement("div");
+  overlay.id = "customgpt-modal";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    inset: "0",
+    background: "rgba(0,0,0,0.5)",
+    backdropFilter: "blur(4px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 999999
   });
 
-  page.innerHTML = `
-    <h1 style="font-size:1.75rem; font-weight:600; margin-bottom:1rem;">CustomGPT Settings</h1>
-    <p style="margin-bottom:2rem; color:var(--text-secondary,#a1a1aa);">
-      Configure appearance and behavior for your CustomGPT extension.
-    </p>
-    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+  const modal = document.createElement("div");
+  Object.assign(modal.style, {
+    background: "#2a2a2e",
+    borderRadius: "10px",
+    padding: "32px",
+    width: "480px",
+    maxHeight: "80vh",
+    overflowY: "auto",
+    boxShadow: "0 0 20px rgba(0,0,0,0.6)",
+    color: "#e4e4e7",
+    fontFamily: "system-ui, sans-serif",
+    position: "relative"
+  });
+
+  modal.innerHTML = `
+    <button id="customgpt-close" style="
+      position:absolute; top:16px; right:16px; background:none; border:none;
+      color:#aaa; font-size:20px; cursor:pointer;">×</button>
+    <h2 style="font-size:1.5rem; font-weight:600; margin-bottom:1rem;">CustomGPT Settings</h2>
+    <p style="margin-bottom:1.5rem; color:#a1a1aa;">Configure appearance and behavior for your CustomGPT extension.</p>
+
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
       <div>
         <label style="display:block; margin-bottom:6px;">Background color</label>
-        <input id="cg-bg" type="color" style="width:100%; height:36px; background:#1e1e20; border:none; border-radius:6px;" />
+        <input id="cg-bg" type="color" style="width:100%; height:36px; border:none; border-radius:6px; background:#1e1e20;">
       </div>
       <div>
         <label style="display:block; margin-bottom:6px;">Sidebar color</label>
-        <input id="cg-side" type="color" style="width:100%; height:36px; background:#1e1e20; border:none; border-radius:6px;" />
+        <input id="cg-side" type="color" style="width:100%; height:36px; border:none; border-radius:6px; background:#1e1e20;">
       </div>
       <div>
         <label style="display:block; margin-bottom:6px;">Text color</label>
-        <input id="cg-text" type="color" style="width:100%; height:36px; background:#1e1e20; border:none; border-radius:6px;" />
+        <input id="cg-text" type="color" style="width:100%; height:36px; border:none; border-radius:6px; background:#1e1e20;">
       </div>
     </div>
   `;
 
-  main.innerHTML = "";
-  main.appendChild(page);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
 
-  const bg = document.getElementById("cg-bg");
-  const si = document.getElementById("cg-side");
-  const tx = document.getElementById("cg-text");
+  // close modal
+  document.getElementById("customgpt-close").onclick = () => {
+    overlay.style.display = "none";
+  };
+  overlay.addEventListener("click", e => {
+    if (e.target === overlay) overlay.style.display = "none";
+  });
+
+  // listeners for color updates
+  const bg = modal.querySelector("#cg-bg");
+  const si = modal.querySelector("#cg-side");
+  const tx = modal.querySelector("#cg-text");
 
   function apply() {
     document.body.style.backgroundColor = bg.value;
@@ -99,15 +123,6 @@ function renderCustomGPTPage() {
 
   [bg, si, tx].forEach(i => i.addEventListener("input", apply));
 }
-
-window.addEventListener("hashchange", () => {
-  const page = document.getElementById("customgpt-page");
-  if (window.location.hash === "#customgpt") {
-    renderCustomGPTPage();
-  } else if (page) {
-    page.style.display = "none";
-  }
-});
 
 const obs = new MutationObserver(() => {
   if (document.querySelector("nav")) insertCustomGPTButton();
