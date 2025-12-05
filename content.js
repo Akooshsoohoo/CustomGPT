@@ -36,45 +36,55 @@ function insertCustomGPTButton() {
   item.addEventListener("click", e => {
     e.preventDefault();
     e.stopPropagation();
-    showPanel();
+    window.location.hash = "#customgpt";
   });
 
   wrapper.insertAdjacentElement("afterend", item);
 }
 
-function showPanel() {
-  let panel = document.getElementById("customgpt-panel");
-  if (panel) {
-    panel.style.display = "block";
+function renderCustomGPTPage() {
+  const existing = document.getElementById("customgpt-page");
+  if (existing) {
+    existing.style.display = "block";
     return;
   }
 
-  panel = document.createElement("div");
-  panel.id = "customgpt-panel";
-  Object.assign(panel.style, {
-    position: "fixed",
-    top: "80px",
-    right: "20px",
-    zIndex: 999999,
-    background: "#222",
-    padding: "20px",
-    borderRadius: "12px",
-    width: "260px",
-    color: "white",
-    boxShadow: "0 0 20px rgba(0,0,0,.4)"
+  const main = document.querySelector("main") || document.querySelector('[role="presentation"]');
+  if (!main) return;
+
+  const page = document.createElement("div");
+  page.id = "customgpt-page";
+  Object.assign(page.style, {
+    color: "var(--text-primary, #e4e4e7)",
+    padding: "48px 64px",
+    maxWidth: "800px",
+    margin: "0 auto",
+    fontFamily: "system-ui, sans-serif"
   });
 
-  panel.innerHTML = `
-    <h3 style="margin:0 0 12px;">CustomGPT Settings</h3>
-    <label>Background</label>
-    <input id="cg-bg" type="color" style="width:100%; margin-bottom:12px;" />
-    <label>Sidebar</label>
-    <input id="cg-side" type="color" style="width:100%; margin-bottom:12px;" />
-    <label>Text</label>
-    <input id="cg-text" type="color" style="width:100%;" />
+  page.innerHTML = `
+    <h1 style="font-size:1.75rem; font-weight:600; margin-bottom:1rem;">CustomGPT Settings</h1>
+    <p style="margin-bottom:2rem; color:var(--text-secondary,#a1a1aa);">
+      Configure appearance and behavior for your CustomGPT extension.
+    </p>
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+      <div>
+        <label style="display:block; margin-bottom:6px;">Background color</label>
+        <input id="cg-bg" type="color" style="width:100%; height:36px; background:#1e1e20; border:none; border-radius:6px;" />
+      </div>
+      <div>
+        <label style="display:block; margin-bottom:6px;">Sidebar color</label>
+        <input id="cg-side" type="color" style="width:100%; height:36px; background:#1e1e20; border:none; border-radius:6px;" />
+      </div>
+      <div>
+        <label style="display:block; margin-bottom:6px;">Text color</label>
+        <input id="cg-text" type="color" style="width:100%; height:36px; background:#1e1e20; border:none; border-radius:6px;" />
+      </div>
+    </div>
   `;
 
-  document.body.appendChild(panel);
+  main.innerHTML = "";
+  main.appendChild(page);
 
   const bg = document.getElementById("cg-bg");
   const si = document.getElementById("cg-side");
@@ -89,6 +99,15 @@ function showPanel() {
 
   [bg, si, tx].forEach(i => i.addEventListener("input", apply));
 }
+
+window.addEventListener("hashchange", () => {
+  const page = document.getElementById("customgpt-page");
+  if (window.location.hash === "#customgpt") {
+    renderCustomGPTPage();
+  } else if (page) {
+    page.style.display = "none";
+  }
+});
 
 const obs = new MutationObserver(() => {
   if (document.querySelector("nav")) insertCustomGPTButton();
