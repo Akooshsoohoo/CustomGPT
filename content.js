@@ -1,7 +1,7 @@
 console.log("customGPT loaded (native-clone)");
 
 const NATIVE_ITEM_HTML = `
-<a tabindex="0" data-fill="" class="group __menu-item hoverable gap-1.5" data-sidebar-item="true">
+<a tabindex="0" data-fill="" class="group __menu-item hoverable gap-1.5" data-sidebar-item="true" data-customgpt="1">
   <div class="flex items-center justify-center group-disabled:opacity-50 group-data-disabled:opacity-50 icon">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
       <circle cx="12" cy="12" r="3"/>
@@ -25,13 +25,11 @@ function insertCustomGPTButton() {
   if (!gptsItem) return;
 
   const wrapper = gptsItem.closest("a, div");
-  if (!wrapper) return;
+  if (!wrapper || !wrapper.parentElement) return;
 
   const temp = document.createElement("div");
   temp.innerHTML = NATIVE_ITEM_HTML.trim();
   const item = temp.firstElementChild;
-  item.setAttribute("data-customgpt", "1");
-  item.removeAttribute("href");
 
   item.addEventListener("click", e => {
     e.preventDefault();
@@ -39,7 +37,7 @@ function insertCustomGPTButton() {
     showModal();
   });
 
-  wrapper.insertAdjacentElement("afterend", item);
+  wrapper.parentElement.insertBefore(item, wrapper.nextSibling);
 }
 
 // Save & restore toggle state
@@ -61,11 +59,19 @@ function loadToggles() {
 function applyToggles(state) {
   const nav = document.querySelector("nav");
   if (!nav) return;
+
   ["Library", "Codex", "GPTs"].forEach(name => {
     const el = [...nav.querySelectorAll("*")].find(
-      e => e.textContent.trim() === name
+      node => node && node.textContent && node.textContent.trim() === name
     );
-    if (el) el.closest("a, div").style.display = state[name] ? "" : "none";
+    if (!el) return;
+
+    const container = el.closest("a, div");
+    if (!container) return;
+
+    if (!container.querySelector("[data-customgpt]")) {
+      container.style.display = state[name] ? "" : "none";
+    }
   });
 }
 
@@ -133,23 +139,19 @@ function showModal() {
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 
-  const close = document.getElementById("customgpt-close");
-  close.onclick = () => (overlay.style.display = "none");
+  document.getElementById("customgpt-close").onclick = () => (overlay.style.display = "none");
   overlay.addEventListener("click", e => {
     if (e.target === overlay) overlay.style.display = "none";
   });
 
-  // Toggle handlers
   ["Library", "Codex", "GPTs"].forEach(name => {
     const input = document.getElementById(`toggle-${name}`);
     const bgTrack = input.nextElementSibling;
     const knob = bgTrack.nextElementSibling;
-
     function updateUI(on) {
       bgTrack.style.backgroundColor = on ? "#10b981" : "#555";
       knob.style.left = on ? "22px" : "2px";
     }
-
     input.addEventListener("change", () => {
       state[name] = input.checked;
       saveToggles(state);
