@@ -42,6 +42,8 @@ function insertCustomGPTButton() {
 
 // Save & restore toggle state
 const STORAGE_KEY = "customgpt_toggles";
+const COLOR_KEY = "customgpt_colors";
+
 function saveToggles(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -56,6 +58,22 @@ function loadToggles() {
     return { Library: true, Codex: true, GPTs: true };
   }
 }
+
+function saveColors(colors) {
+  localStorage.setItem(COLOR_KEY, JSON.stringify(colors));
+}
+function loadColors() {
+  try {
+    return JSON.parse(localStorage.getItem(COLOR_KEY)) || {
+      bg: "#000000",
+      sidebar: "#27272a",
+      text: "#ffffff"
+    };
+  } catch {
+    return { bg: "#000000", sidebar: "#27272a", text: "#ffffff" };
+  }
+}
+
 function applyToggles(state) {
   const nav = document.querySelector("nav");
   if (!nav) return;
@@ -75,6 +93,13 @@ function applyToggles(state) {
   });
 }
 
+function applyColors(colors) {
+  document.body.style.backgroundColor = colors.bg;
+  const sidebar = document.querySelector("nav");
+  if (sidebar) sidebar.style.backgroundColor = colors.sidebar;
+  document.body.style.color = colors.text;
+}
+
 function showModal() {
   if (document.getElementById("customgpt-modal")) {
     document.getElementById("customgpt-modal").style.display = "flex";
@@ -82,6 +107,7 @@ function showModal() {
   }
 
   const state = loadToggles();
+  const colors = loadColors();
 
   const overlay = document.createElement("div");
   overlay.id = "customgpt-modal";
@@ -101,11 +127,13 @@ function showModal() {
     background: "#2a2a2e",
     borderRadius: "10px",
     padding: "32px",
-    width: "460px",
+    width: "480px",
     boxShadow: "0 0 20px rgba(0,0,0,0.6)",
     color: "#e4e4e7",
     fontFamily: "system-ui, sans-serif",
-    position: "relative"
+    position: "relative",
+    maxHeight: "80vh",
+    overflowY: "auto"
   });
 
   modal.innerHTML = `
@@ -115,7 +143,7 @@ function showModal() {
     <h2 style="font-size:1.5rem; font-weight:600; margin-bottom:1rem;">CustomGPT Settings</h2>
     <p style="margin-bottom:1.5rem; color:#a1a1aa;">Toggle sidebar sections below:</p>
 
-    <div id="toggle-list" style="display:flex; flex-direction:column; gap:1.25rem;">
+    <div id="toggle-list" style="display:flex; flex-direction:column; gap:1.25rem; margin-bottom:2rem;">
       ${["Library", "Codex", "GPTs"].map(name => `
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span>${name}</span>
@@ -133,6 +161,22 @@ function showModal() {
           </label>
         </div>
       `).join("")}
+    </div>
+
+    <hr style="border:none; border-top:1px solid #3f3f46; margin:1.5rem 0;">
+
+    <h3 style="font-size:1.2rem; font-weight:600; margin-bottom:1rem;">Color Controls</h3>
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <label>Background <input id="cg-bg" type="color" value="${colors.bg}" style="margin-left:12px;"></label>
+      <label>Sidebar <input id="cg-side" type="color" value="${colors.sidebar}" style="margin-left:38px;"></label>
+      <label>Text <input id="cg-text" type="color" value="${colors.text}" style="margin-left:62px;"></label>
+    </div>
+
+    <h3 style="font-size:1.1rem; font-weight:600; margin:1.5rem 0 1rem;">Presets</h3>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="preset" data-preset="default" style="padding:6px 12px; background:#3f3f46; color:#e4e4e7; border:none; border-radius:6px; cursor:pointer;">Default</button>
+      <button class="preset" data-preset="midnight" style="padding:6px 12px; background:#1f1f22; color:#e4e4e7; border:none; border-radius:6px; cursor:pointer;">Midnight</button>
+      <button class="preset" data-preset="ocean" style="padding:6px 12px; background:#004b70; color:#e4e4e7; border:none; border-radius:6px; cursor:pointer;">Ocean</button>
     </div>
   `;
 
@@ -160,16 +204,46 @@ function showModal() {
     });
   });
 
+  const bg = document.getElementById("cg-bg");
+  const si = document.getElementById("cg-side");
+  const tx = document.getElementById("cg-text");
+  function updateColors() {
+    const c = { bg: bg.value, sidebar: si.value, text: tx.value };
+    applyColors(c);
+    saveColors(c);
+  }
+  [bg, si, tx].forEach(i => i.addEventListener("input", updateColors));
+
+  modal.querySelectorAll(".preset").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const preset = btn.getAttribute("data-preset");
+      const presets = {
+        default: { bg: "#000000", sidebar: "#27272a", text: "#ffffff" },
+        midnight: { bg: "#0d0d0f", sidebar: "#1a1a1d", text: "#d4d4d8" },
+        ocean: { bg: "#001f2b", sidebar: "#004b70", text: "#cce7ff" }
+      };
+      const chosen = presets[preset];
+      bg.value = chosen.bg;
+      si.value = chosen.sidebar;
+      tx.value = chosen.text;
+      applyColors(chosen);
+      saveColors(chosen);
+    });
+  });
+
   applyToggles(state);
+  applyColors(colors);
 }
 
 const obs = new MutationObserver(() => {
   if (document.querySelector("nav")) {
     insertCustomGPTButton();
     applyToggles(loadToggles());
+    applyColors(loadColors());
   }
 });
 obs.observe(document.body, { childList: true, subtree: true });
 
 insertCustomGPTButton();
 applyToggles(loadToggles());
+applyColors(loadColors());
