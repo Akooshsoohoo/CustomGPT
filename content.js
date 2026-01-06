@@ -67,12 +67,40 @@ function loadColors() {
       bg: "#000000",
       sidebar: "#27272a",
       text: "#ffffff",
-      composer: null,          // new override slot
-      composerAuto: true       // auto mode default
+      composer: null,
+      composerAuto: true
     };
   } catch {
     return { bg: "#000000", sidebar: "#27272a", text: "#ffffff", composer: null, composerAuto: true };
   }
+}
+
+// FIX: wrap risky calls so errors stop being uncaught and you can see the real stack
+function safeRun(label, fn) {
+  try {
+    fn();
+  } catch (e) {
+    console.error("CustomGPT error in " + label, e);
+  }
+}
+
+// FIX: hardened applyToggles (avoid null/accidental nav hiding)
+function applyToggles(state) {
+  if (!state) state = loadToggles();
+
+  const nav = document.querySelector("nav");
+  if (!nav) return;
+
+  const setVisibleByLabel = (label, on) => {
+    const candidates = [...nav.querySelectorAll("a, button, [role='button'], li")];
+    const row = candidates.find(n => (n.textContent || "").trim() === label);
+    if (!row) return;
+    row.style.display = on ? "" : "none";
+  };
+
+  setVisibleByLabel("Library", !!state.Library);
+  setVisibleByLabel("Codex", !!state.Codex);
+  setVisibleByLabel("GPTs", !!state.GPTs);
 }
 
 // Brightness adjust helper
@@ -90,17 +118,15 @@ function adjust(color, amount) {
 }
 
 function deriveComposer(bg) {
-  // Auto decision: check if dark or light
   const val = parseInt(bg.slice(1), 16);
   const brightness = ((val >> 16) & 255) * 0.3 + ((val >> 8) & 255) * 0.59 + (val & 255) * 0.11;
 
   return brightness < 128
-    ? adjust(bg, +20) // dark theme → lighten
-    : adjust(bg, -20); // light theme → darken
+    ? adjust(bg, +20)
+    : adjust(bg, -20);
 }
 
 function applyColors(colors) {
-  // Core theming
   document.body.style.backgroundColor = colors.bg;
 
   const sidebar = document.querySelector("nav");
@@ -108,27 +134,21 @@ function applyColors(colors) {
 
   document.body.style.color = colors.text;
 
-  // Desktop top bar
   const topDesktop = document.querySelector("#page-header");
   if (topDesktop) topDesktop.style.backgroundColor = colors.sidebar;
 
-  // Mobile top bar
   const topMobile = document.querySelector(".draggable.h-header-height");
   if (topMobile) topMobile.style.backgroundColor = colors.sidebar;
 
-  // Sidebars
   const asideBlocks = document.querySelectorAll("aside");
   if (asideBlocks[0]) asideBlocks[0].style.backgroundColor = colors.sidebar;
   if (asideBlocks[asideBlocks.length - 1])
     asideBlocks[asideBlocks.length - 1].style.backgroundColor = colors.sidebar;
 
-  // Main area
   const main = document.querySelector("main");
   if (main) main.style.backgroundColor = colors.bg;
 
-  // === COMPOSER BAR LOGIC ===
   const composer = document.querySelector("#composer-background, .composer, .sticky.bottom-0");
-
   if (composer) {
     const finalColor = colors.composerAuto
       ? deriveComposer(colors.bg)
@@ -244,7 +264,6 @@ function showModal() {
     });
   });
 
-  // COLOR CONTROLS
   const bg = document.getElementById("cg-bg");
   const si = document.getElementById("cg-side");
   const tx = document.getElementById("cg-text");
@@ -273,7 +292,6 @@ function showModal() {
     updateColors();
   });
 
-  // PRESETS
   modal.querySelectorAll(".preset").forEach(btn => {
     btn.addEventListener("click", () => {
       const preset = btn.getAttribute("data-preset");
@@ -310,15 +328,30 @@ function showModal() {
   applyColors(colors);
 }
 
+// FIX: throttle observer + guard its work (prevents timing crashes)
+let scheduled = false;
+
 const obs = new MutationObserver(() => {
-  if (document.querySelector("nav")) {
-    insertCustomGPTButton();
-    applyToggles(loadToggles());
-    applyColors(loadColors());
-  }
+  if (scheduled) return;
+  scheduled = true;
+
+  requestAnimationFrame(() => {
+    scheduled = false;
+
+    safeRun("observer", () => {
+      if (!document.querySelector("nav")) return;
+      insertCustomGPTButton();
+      applyToggles(loadToggles());
+      applyColors(loadColors());
+    });
+  });
 });
+
 obs.observe(document.body, { childList: true, subtree: true });
 
-insertCustomGPTButton();
-applyToggles(loadToggles());
-applyColors(loadColors());
+// FIX: guard startup work too
+safeRun("startup", () => {
+  insertCustomGPTButton();
+  applyToggles(loadToggles());
+  applyColors(loadColors());
+});
