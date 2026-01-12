@@ -119,34 +119,124 @@ function adjust(color, amount) {
 
 function deriveComposer(bg) {
   const val = parseInt(bg.slice(1), 16);
-  const brightness = ((val >> 16) & 255) * 0.3 + ((val >> 8) & 255) * 0.59 + (val & 255) * 0.11;
+  const brightness = ((val >> 16) & 255) * 0.3 + ((val >> 8) & 0xFF) * 0.59 + (val & 0xFF) * 0.11;
 
   return brightness < 128
     ? adjust(bg, +20)
     : adjust(bg, -20);
 }
 
+// === THEME BUNDLING (derived from bg/sidebar/text only) ===
+const CUSTOMGPT_STYLE_ID = "customgpt-theme-style";
+
+function buildPalette(colors) {
+  const bg = colors.bg;
+  const sidebar = colors.sidebar;
+  const text = colors.text;
+
+  const surface = deriveComposer(bg);
+  const surface2 = adjust(surface, +10);
+  const border = adjust(bg, +24);
+  const hover = adjust(surface, +10);
+  const codeBg = adjust(bg, +14);
+
+  return { bg, sidebar, text, surface, surface2, border, hover, codeBg };
+}
+
+function ensureThemeStyleTag() {
+  let tag = document.getElementById(CUSTOMGPT_STYLE_ID);
+  if (tag) return tag;
+
+  tag = document.createElement("style");
+  tag.id = CUSTOMGPT_STYLE_ID;
+  tag.textContent = `
+:root {
+  --cg-bg: #000000;
+  --cg-sidebar: #27272a;
+  --cg-text: #ffffff;
+  --cg-surface: #111111;
+  --cg-surface2: #151515;
+  --cg-border: #2a2a2a;
+  --cg-hover: #1a1a1a;
+  --cg-code: #141414;
+}
+
+body { background-color: var(--cg-bg) !important; color: var(--cg-text) !important; }
+main, main > div { background-color: var(--cg-bg) !important; }
+
+nav, #page-header, #sidebar-header, aside { background-color: var(--cg-sidebar) !important; }
+
+/* thread content wrapper (text-base mx-auto + thread margin var) */
+div[class*="text-base"][class*="mx-auto"],
+div[style*="--thread-content-margin"],
+div[class*="--thread-content-margin"] {
+  background-color: var(--cg-bg) !important;
+}
+
+/* "uncolored islands" you were inspecting */
+div[class*="md:px"], div[class*="overflow-y-auto"] { background-color: var(--cg-bg) !important; }
+
+/* common raised blocks / system bars */
+div[class*="text-token-text-secondary"],
+div[class*="min-h-8"],
+div[class*="rounded"],
+div[class*="shadow"] {
+  background-color: var(--cg-surface) !important;
+  border-color: var(--cg-border) !important;
+}
+
+/* code blocks */
+pre, code,
+div[class*="prose"] pre,
+div[class*="prose"] code {
+  background-color: var(--cg-code) !important;
+  border-color: var(--cg-border) !important;
+}
+
+/* composer harmony: outer + inner */
+#composer-background,
+.sticky.bottom-0,
+.composer {
+  background-color: var(--cg-surface) !important;
+  border-color: var(--cg-border) !important;
+}
+
+#composer-background * ,
+.sticky.bottom-0 * ,
+.composer * {
+  border-color: var(--cg-border) !important;
+}
+
+textarea,
+input[type="text"] {
+  background-color: var(--cg-surface2) !important;
+  color: var(--cg-text) !important;
+}
+
+button, [role="button"] {
+  color: var(--cg-text) !important;
+}
+`;
+  document.head.appendChild(tag);
+  return tag;
+}
+
+function setThemeVars(p) {
+  const root = document.documentElement;
+  root.style.setProperty("--cg-bg", p.bg);
+  root.style.setProperty("--cg-sidebar", p.sidebar);
+  root.style.setProperty("--cg-text", p.text);
+  root.style.setProperty("--cg-surface", p.surface);
+  root.style.setProperty("--cg-surface2", p.surface2);
+  root.style.setProperty("--cg-border", p.border);
+  root.style.setProperty("--cg-hover", p.hover);
+  root.style.setProperty("--cg-code", p.codeBg);
+}
+
 function applyColors(colors) {
-  document.body.style.backgroundColor = colors.bg;
-
-  const sidebar = document.querySelector("nav");
-  if (sidebar) sidebar.style.backgroundColor = colors.sidebar;
-
-  document.body.style.color = colors.text;
-
-  const topDesktop = document.querySelector("#page-header");
-  if (topDesktop) topDesktop.style.backgroundColor = colors.sidebar;
-
-  const topMobile = document.querySelector(".draggable.h-header-height");
-  if (topMobile) topMobile.style.backgroundColor = colors.sidebar;
-
-  const asideBlocks = document.querySelectorAll("aside");
-  if (asideBlocks[0]) asideBlocks[0].style.backgroundColor = colors.sidebar;
-  if (asideBlocks[asideBlocks.length - 1])
-    asideBlocks[asideBlocks.length - 1].style.backgroundColor = colors.sidebar;
-
-  const main = document.querySelector("main");
-  if (main) main.style.backgroundColor = colors.bg;
+  const palette = buildPalette(colors);
+  ensureThemeStyleTag();
+  setThemeVars(palette);
 
   const composer = document.querySelector("#composer-background, .composer, .sticky.bottom-0");
   if (composer) {
@@ -301,7 +391,6 @@ function showModal() {
         ocean: { bg: "#001f2b", sidebar: "#004b70", text: "#cce7ff" }
       };
       const chosen = presets[preset];
-      const autoComposer = deriveComposer(chosen.bg);
 
       bg.value = chosen.bg;
       si.value = chosen.sidebar;
